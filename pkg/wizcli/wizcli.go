@@ -13,9 +13,10 @@ import (
 
 // WizCliURLs holds the download URLs for wizcli binaries for different platforms and architectures.
 var WizCliURLs = map[string]string{
-	"linux/amd64":  "https://wizcli.app.wiz.io/latest/wizcli-linux-amd64",
-	"linux/arm64":  "https://wizcli.app.wiz.io/latest/wizcli-linux-arm64",
-	"darwin/arm64": "https://wizcli.app.wiz.io/latest/wizcli-darwin-arm64",
+	"linux/amd64":   "https://wizcli.app.wiz.io/latest/wizcli-linux-amd64",
+	"linux/arm64":   "https://wizcli.app.wiz.io/latest/wizcli-linux-arm64",
+	"darwin/arm64":  "https://wizcli.app.wiz.io/latest/wizcli-darwin-arm64",
+	"windows/amd64": "https://wizcli.app.wiz.io/latest/wizcli-windows-amd64.exe",
 	// Add other platforms and architectures as needed.
 }
 
@@ -87,10 +88,6 @@ func SetupEnvironment() (string, error) {
 }
 
 func AuthenticateWizcli(wizcliPath, wizClientID, wizClientSecret string) (string, error) {
-	if runtime.GOOS == "windows" {
-		wizcliPath += ".exe"
-	}
-
 	cmd := exec.Command(wizcliPath, "auth", "--id", wizClientID, "--secret", wizClientSecret)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
