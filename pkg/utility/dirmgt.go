@@ -19,24 +19,6 @@ var exclusions = map[string]bool{
 	"D:\\":        true, // For Windows
 }
 
-// listDirectoriesInDrive lists all top-level directories in the given drive.
-func listDirectoriesInDrive(drive string) ([]string, error) {
-	var directories []string
-	entries, err := os.ReadDir(drive)
-	if err != nil {
-		return nil, err
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			dirPath := filepath.Join(drive, entry.Name())
-			if !exclusions[dirPath] {
-				directories = append(directories, dirPath)
-			}
-		}
-	}
-	return directories, nil
-}
-
 // ListTopLevelDirectories lists all top-level directories excluding specified ones.
 func listTopLevelDirectories(rootPath string) ([]string, error) {
 	var directories []string
@@ -70,24 +52,23 @@ func listTopLevelDirectories(rootPath string) ([]string, error) {
 	return directories, nil
 }
 
+// GetTopLevelDirectories returns a list of top-level directories or drive letters.
 func GetTopLevelDirectories() ([]string, error) {
 	var allDirectories []string
 
 	if runtime.GOOS == "windows" {
+		// Iterate over each drive letter
 		for _, drive := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
 			drive := string(drive) + ":\\"
 			if _, err := os.Stat(drive); err == nil {
-				driveDirectories, err := listDirectoriesInDrive(drive)
-				if err != nil {
-					logger.Log.Errorf("Error listing directories in drive %s: %v", drive, err)
-				} else {
-					allDirectories = append(allDirectories, driveDirectories...)
-				}
+				// If the drive exists, add it to the list
+				allDirectories = append(allDirectories, drive)
 			}
 		}
 	} else {
-		// Unix-like systems code remains the same
-		directories, err := listTopLevelDirectories("/")
+		// Unix-like systems: list top-level directories
+		rootPath := "/"
+		directories, err := listTopLevelDirectories(rootPath)
 		if err != nil {
 			logger.Log.Errorf("Error listing directories: %v", err)
 			return nil, err
