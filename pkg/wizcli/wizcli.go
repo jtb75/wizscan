@@ -110,11 +110,13 @@ func CleanupEnvironment(downloadPath string) error {
 	return nil
 }
 
-func InitializeAndAuthenticate(clientID, clientSecret string) (cleanupFunc func(), err error) {
-	wizCliPath, err := SetupEnvironment()
+// InitializeAndAuthenticate sets up the environment for wizcli, downloads it if necessary,
+// authenticates using the provided credentials, and returns the path to the wizcli executable.
+func InitializeAndAuthenticate(clientID, clientSecret string) (cleanupFunc func(), wizCliPath string, err error) {
+	wizCliPath, err = SetupEnvironment()
 	if err != nil {
 		logger.Log.Errorf("Failed to set up wizcli environment: %v", err)
-		return nil, err
+		return nil, "", err // Adjusted to return an empty string for the path in case of error
 	}
 
 	cleanupFunc = func() {
@@ -128,7 +130,7 @@ func InitializeAndAuthenticate(clientID, clientSecret string) (cleanupFunc func(
 	if err := os.Setenv("WIZ_DIR", wizDir); err != nil {
 		cleanupFunc()
 		logger.Log.Errorf("Failed to set WIZ_DIR environment variable: %v", err)
-		return nil, err
+		return nil, "", err
 	}
 
 	// Authenticate wizcli
@@ -136,9 +138,9 @@ func InitializeAndAuthenticate(clientID, clientSecret string) (cleanupFunc func(
 	if err != nil {
 		cleanupFunc()
 		logger.Log.Errorf("Failed to authenticate wizcli: %v", err)
-		return nil, err
+		return nil, "", err
 	}
 	logger.Log.Info(authMessage)
 
-	return cleanupFunc, nil
+	return cleanupFunc, wizCliPath, nil // Now also returning the path to wizcli
 }

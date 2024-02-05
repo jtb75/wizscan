@@ -40,9 +40,9 @@ func main() {
 	}
 
 	// Initialize and authenticate wizcli
-	cleanup, err := wizcli.InitializeAndAuthenticate(args.WizClientID, args.WizClientSecret)
+	cleanup, wizCliPath, err := wizcli.InitializeAndAuthenticate(args.WizClientID, args.WizClientSecret)
 	if err != nil {
-		logger.Log.Errorf("Error during wizcli initialization and authentication: %v", err)
+		logger.Log.Errorf("Initialization and authentication failed: %v", err)
 		return
 	}
 	defer cleanup()
@@ -68,6 +68,19 @@ func main() {
 		}
 
 		// Do operations on the mounted snapshot...
+		if mountedPath == "" {
+			mountedPath = drive
+		}
+		scanResult, err := wizcli.ScanDirectory(wizCliPath, mountedPath)
+		if err != nil {
+			logger.Log.Errorf("Failed to scan %s: %v", mountedPath, err)
+			continue
+		}
+
+		// Process the scanResult as needed
+		logger.Log.Infof("Scan completed for %s", mountedPath)
+		// Example: Log the number of vulnerabilities found
+		logger.Log.Infof("Found %d vulnerabilities in %s", len(scanResult.Vulnerabilities), mountedPath)
 
 		// Remove the VSS snapshot and link
 		if runtime.GOOS == "windows" {
