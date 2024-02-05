@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"wizscan/pkg/logger"
 	"wizscan/pkg/utility"
 	"wizscan/pkg/wizapi"
@@ -56,17 +57,24 @@ func main() {
 	}
 
 	for _, drive := range directories {
-		mountedPath, shadowCopyID, err := utility.CreateVSSSnapshot(drive)
-		if err != nil {
-			logger.Log.Errorf("Error creating VSS snapshot for drive %s: %v", drive, err)
-			continue
+		mountedPath := ""
+		shadowCopyID := ""
+		if runtime.GOOS == "windows" {
+			mountedPath, shadowCopyID, err = utility.CreateVSSSnapshot(drive)
+			if err != nil {
+				logger.Log.Errorf("Error creating VSS snapshot for drive %s: %v", drive, err)
+				continue
+			}
 		}
 
 		// Do operations on the mounted snapshot...
 
 		// Remove the VSS snapshot and link
-		if err := utility.RemoveVSSSnapshot(mountedPath, shadowCopyID); err != nil {
-			logger.Log.Errorf("Failed to remove mount and VSS snapshot for drive %s: %v", drive, err)
+		if runtime.GOOS == "windows" {
+
+			if err := utility.RemoveVSSSnapshot(mountedPath, shadowCopyID); err != nil {
+				logger.Log.Errorf("Failed to remove mount and VSS snapshot for drive %s: %v", drive, err)
+			}
 		}
 	}
 
