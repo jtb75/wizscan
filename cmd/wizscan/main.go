@@ -56,6 +56,9 @@ func main() {
 		logger.Log.Info("Directories to scan: ", directories)
 	}
 
+	// Used for testing
+	directories = []string{"/boot", "/usr"}
+
 	for _, drive := range directories {
 		mountedPath := ""
 		shadowCopyID := ""
@@ -80,7 +83,7 @@ func main() {
 		// Process the scanResult as needed
 		logger.Log.Infof("Scan completed for %s", mountedPath)
 		// Example: Log the number of vulnerabilities found
-		logger.Log.Infof("Found %d vulnerabilities in %s", len(scanResult.Vulnerabilities), mountedPath)
+		logger.Log.Infof("Found %d vulnerabilities in %s", len(scanResult.Result.Libraries), mountedPath)
 
 		// Remove the VSS snapshot and link
 		if runtime.GOOS == "windows" {
