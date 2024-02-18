@@ -1,7 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
 	"runtime"
+	"strings"
 	"wizscan/pkg/logger"
 	"wizscan/pkg/utility"
 	"wizscan/pkg/wizapi"
@@ -37,6 +41,19 @@ func main() {
 	if err != nil {
 		logger.Log.Errorf("Error fetching vulnerabilities: %v", err)
 		logger.Log.Debug("Vulnerability Query Response: ", response)
+	}
+
+	jsonResponseBytes, err := json.MarshalIndent(response, "", "    ")
+	if err != nil {
+		fmt.Println("Error marshalling JSON:", err)
+		return
+	}
+	// Writing the indented JSON output to a file
+	err = os.WriteFile("sample_data/known_vulns.json", jsonResponseBytes, 0644)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		logger.Log.Exit(1)
+		return
 	}
 
 	// Initialize and authenticate wizcli
@@ -83,6 +100,18 @@ func main() {
 			continue
 		}
 
+		formattedDrive := drive
+		if runtime.GOOS == "windows" {
+			// Replace all backslashes with forward slashes and trim the trailing slash
+			formattedDrive = strings.ReplaceAll(drive, "/", "\\")
+		}
+
+		// Prepend the Drive to the Library path to represent actual full path
+		for i, lib := range scanResult.Result.Libraries {
+			// Prepend drive to each library's path
+			scanResult.Result.Libraries[i].Path = formattedDrive + lib.Path
+		}
+
 		// Process the scanResult as needed
 		logger.Log.Infof("Scan completed for %s", mountedPath)
 		// Example: Log the number of vulnerabilities found
@@ -104,20 +133,18 @@ func main() {
 	}
 
 	// Convert the aggregated results to indented JSON
-	/*
-		jsonBytes, err := json.MarshalIndent(aggregatedResults, "", "    ")
-		if err != nil {
-			fmt.Println("Error marshalling JSON:", err)
-			return
-		}
+	jsonBytes, err := json.MarshalIndent(aggregatedResults, "", "    ")
+	if err != nil {
+		fmt.Println("Error marshalling JSON:", err)
+		return
+	}
 
-		// Writing the indented JSON output to a file
-		err = os.WriteFile("output.json", jsonBytes, 0644)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return
-		}
+	// Writing the indented JSON output to a file
+	err = os.WriteFile("sample_data/scan.json", jsonBytes, 0644)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
+	}
 
-		fmt.Println("Results saved to output.json")
-	*/
+	fmt.Println("Results saved to output.json")
 }

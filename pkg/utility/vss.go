@@ -118,7 +118,7 @@ func RemoveVSSSnapshot(mountedPath string, shadowCopyID string) error {
 		return fmt.Errorf("VSS is only supported on Windows")
 	}
 
-	// Example command to remove the mount
+	// Command to remove the mount
 	removeMountCmd := fmt.Sprintf("rd %s", mountedPath)
 	if err := exec.Command("cmd", "/C", removeMountCmd).Run(); err != nil {
 		logger.Log.Errorf("Failed to remove VSS mount for %s: %v", mountedPath, err)
@@ -127,7 +127,7 @@ func RemoveVSSSnapshot(mountedPath string, shadowCopyID string) error {
 		logger.Log.Debugf("Removed mounted VSS snapshot at %s", mountedPath)
 	}
 
-	// Example command to delete the VSS snapshot
+	// Command to delete the VSS snapshot
 	deleteSnapshotCmd := fmt.Sprintf("vssadmin delete shadows /Shadow=%s /quiet", shadowCopyID)
 	if err := exec.Command("cmd", "/C", deleteSnapshotCmd).Run(); err != nil {
 		logger.Log.Errorf("Failed to delete VSS snapshot for %s: %v", shadowCopyID, err)
