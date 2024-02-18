@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 	"wizscan/pkg/logger"
 )
@@ -165,4 +166,35 @@ func (w *WizAPI) RetryableResponseStatusCode(statusCode int) bool {
 	default:
 		return false
 	}
+}
+
+func RedactAuthToken(output string) string {
+	// Define the start and end markers of the sensitive information
+	startMarker := "AuthToken:"
+	endMarker := `"`
+
+	// Find the starting position of the AuthToken value
+	startIndex := strings.Index(output, startMarker)
+	if startIndex == -1 {
+		// AuthToken not found; return original output
+		return output
+	}
+
+	// Adjust startIndex to point to the start of the AuthToken value
+	startIndex += len(startMarker)
+
+	// Find the end position of the AuthToken value
+	endIndex := strings.Index(output[startIndex:], endMarker)
+	if endIndex == -1 {
+		// End marker not found; return original output
+		return output
+	}
+
+	// Adjust endIndex to be relative to the entire output string
+	endIndex += startIndex + len(endMarker)
+
+	// Replace the AuthToken with "REDACTED"
+	redactedOutput := output[:startIndex] + " \"REDACTED\"" + output[endIndex:]
+
+	return redactedOutput
 }

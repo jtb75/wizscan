@@ -5,6 +5,7 @@ package wizcli
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -12,65 +13,17 @@ import (
 	"wizscan/pkg/logger"
 )
 
+type AggregatedScanResults struct {
+	Libraries    []Library      `json:"libraries"`
+	Applications []Applications `json:"applications"`
+}
+
 type ScanOutput struct {
 	ID                 string             `json:"id"`
-	Projects           interface{}        `json:"projects"`
 	CreatedAt          time.Time          `json:"createdAt"`
-	StartedAt          time.Time          `json:"startedAt"`
-	CreatedBy          CreatedBy          `json:"createdBy"`
-	Status             Status             `json:"status"`
-	Policies           []Policy           `json:"policies"`
-	ExtraInfo          interface{}        `json:"extraInfo"`
-	Tags               interface{}        `json:"tags"`
-	OutdatedPolicies   []interface{}      `json:"outdatedPolicies"`
-	TaggedResource     interface{}        `json:"taggedResource"`
 	ScanOriginResource ScanOriginResource `json:"scanOriginResource"`
 	Result             Result             `json:"result"`
 	ReportUrl          string             `json:"reportUrl"`
-}
-
-type CreatedBy struct {
-	ServiceAccount ServiceAccount `json:"serviceAccount"`
-}
-
-type ServiceAccount struct {
-	ID string `json:"id"`
-}
-
-type Status struct {
-	State   string `json:"state"`
-	Verdict string `json:"verdict"`
-}
-
-type Policy struct {
-	ID                          string                       `json:"id"`
-	Name                        string                       `json:"name"`
-	Description                 string                       `json:"description"`
-	Type                        string                       `json:"type"`
-	Builtin                     bool                         `json:"builtin"`
-	Projects                    interface{}                  `json:"projects"`
-	PolicyLifecycleEnforcements []PolicyLifecycleEnforcement `json:"policyLifecycleEnforcements"`
-	IgnoreRules                 interface{}                  `json:"ignoreRules"`
-	LifecycleTargets            interface{}                  `json:"lifecycleTargets"`
-	Params                      Params                       `json:"params"`
-}
-
-type PolicyLifecycleEnforcement struct {
-	EnforcementMethod   string `json:"enforcementMethod"`
-	DeploymentLifecycle string `json:"deploymentLifecycle"`
-}
-
-type Params struct {
-	Typename                string        `json:"__typename"`
-	CountThreshold          int           `json:"countThreshold"`
-	PathAllowList           []interface{} `json:"pathAllowList"`
-	Severity                string        `json:"severity,omitempty"`
-	PackageCountThreshold   int           `json:"packageCountThreshold,omitempty"`
-	IgnoreUnfixed           bool          `json:"ignoreUnfixed,omitempty"`
-	PackageAllowList        []interface{} `json:"packageAllowList,omitempty"`
-	DetectionMethods        interface{}   `json:"detectionMethods,omitempty"`
-	FixGracePeriodHours     int           `json:"fixGracePeriodHours,omitempty"`
-	PublishGracePeriodHours int           `json:"publishGracePeriodHours,omitempty"`
 }
 
 type ScanOriginResource struct {
@@ -79,25 +32,31 @@ type ScanOriginResource struct {
 }
 
 type Result struct {
-	Typename            string              `json:"__typename"`
-	OsPackages          interface{}         `json:"osPackages"`
-	Libraries           []Library           `json:"libraries"`
-	Applications        interface{}         `json:"applications"`
-	Cpes                interface{}         `json:"cpes"`
-	Secrets             []Secret            `json:"secrets"`
-	DataFindings        interface{}         `json:"dataFindings"`
-	FailedPolicyMatches []FailedPolicyMatch `json:"failedPolicyMatches"`
-	Analytics           Analytics           `json:"analytics"`
+	OsPackages   interface{}    `json:"osPackages"`
+	Libraries    []Library      `json:"libraries"`
+	Applications []Applications `json:"applications"`
+	Cpes         interface{}    `json:"cpes"`
 }
 
 type Library struct {
-	Name                string          `json:"name"`
-	Version             string          `json:"version"`
-	Path                string          `json:"path"`
-	Vulnerabilities     []Vulnerability `json:"vulnerabilities"`
-	DetectionMethod     string          `json:"detectionMethod"`
-	LayerMetadata       interface{}     `json:"layerMetadata"`
-	FailedPolicyMatches []interface{}   `json:"failedPolicyMatches"`
+	Name            string          `json:"name"`
+	Version         string          `json:"version"`
+	Path            string          `json:"path"`
+	Vulnerabilities []Vulnerability `json:"vulnerabilities"`
+	DetectionMethod string          `json:"detectionMethod"`
+}
+
+type Applications struct {
+	Name            string                `json:"name"`
+	Vulnerabilities []VulnerabilityDetail `json:"vulnerabilities"`
+	DetectionMethod string                `json:"detectionMethod"`
+}
+
+type VulnerabilityDetail struct {
+	Path          interface{}   `json:"path"`
+	PathType      interface{}   `json:"pathType"`
+	Version       string        `json:"version"`
+	Vulnerability Vulnerability `json:"vulnerability"`
 }
 
 type Vulnerability struct {
@@ -123,69 +82,20 @@ type Vulnerability struct {
 	GracePeriodRemainingHours interface{} `json:"gracePeriodRemainingHours"`
 }
 
-type Secret struct {
-	Description         string              `json:"description"`
-	Path                string              `json:"path"`
-	LineNumber          int                 `json:"lineNumber"`
-	Offset              int                 `json:"offset"`
-	Type                string              `json:"type"`
-	Contains            []Contains          `json:"contains"`
-	Snippet             interface{}         `json:"snippet"`
-	ExternalId          interface{}         `json:"externalId"`
-	FailedPolicyMatches []FailedPolicyMatch `json:"failedPolicyMatches"`
-	Details             Details             `json:"details"`
-}
-
-type Contains struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-}
-
-type FailedPolicyMatch struct {
-	Policy Policy `json:"policy"`
-}
-
-type Details struct {
-	Typename  string `json:"__typename"`
-	Length    int    `json:"length"`
-	IsComplex bool   `json:"isComplex"`
-}
-
-type Analytics struct {
-	Vulnerabilities         Vulnerabilities `json:"vulnerabilities"`
-	Secrets                 Secrets         `json:"secrets"`
-	FilesScannedCount       int             `json:"filesScannedCount"`
-	DirectoriesScannedCount int             `json:"directoriesScannedCount"`
-}
-
-type Vulnerabilities struct {
-	InfoCount     int `json:"infoCount"`
-	LowCount      int `json:"lowCount"`
-	MediumCount   int `json:"mediumCount"`
-	HighCount     int `json:"highCount"`
-	CriticalCount int `json:"criticalCount"`
-	UnfixedCount  int `json:"unfixedCount"`
-	TotalCount    int `json:"totalCount"`
-}
-
-type Secrets struct {
-	CloudKeyCount           int `json:"cloudKeyCount"`
-	GitCredentialCount      int `json:"gitCredentialCount"`
-	DbConnectionStringCount int `json:"dbConnectionStringCount"`
-	PrivateKeyCount         int `json:"privateKeyCount"`
-	PasswordCount           int `json:"passwordCount"`
-	SaasAPIKeyCount         int `json:"saasAPIKeyCount"`
-	TotalCount              int `json:"totalCount"`
-}
-
 // ScanDirectory uses wizcli to scan the specified directory for vulnerabilities and parses the JSON output.
 func ScanDirectory(wizcliPath, directoryPath string) (*ScanOutput, error) {
-	// Ensure the wizcliPath is correctly quoted to handle spaces.
-	quotedWizcliPath := "\"" + wizcliPath + "\""
-	quotedDirectoryPath := "\"" + directoryPath + "\""
+
+	// Get hostname to be used as scan name
+	hostname, err := os.Hostname()
+	if err != nil {
+		logger.Log.Errorf("Error getting hostname: %v\n", err)
+		return nil, fmt.Errorf("failed to get hostname - Output %s", err)
+	}
+
+	scanName := hostname + "-" + directoryPath
 
 	// Construct the command to scan the directory, handling Windows and Unix-like systems appropriately.
-	cmdStr := fmt.Sprintf("%s dir scan --path %s -f json", quotedWizcliPath, quotedDirectoryPath)
+	cmdStr := fmt.Sprintf("%s dir scan --path %s -f json --name %s", wizcliPath, directoryPath, scanName)
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command("cmd", "/C", cmdStr)
@@ -194,13 +104,18 @@ func ScanDirectory(wizcliPath, directoryPath string) (*ScanOutput, error) {
 	}
 
 	// Execute the command and capture its combined output.
+	logger.Log.Debugf("Initiating scan for directory: %s", directoryPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Handle the case where the command execution results in an error not related to parsing.
-		return nil, fmt.Errorf("failed to scan directory %s: %v - Output: %s", directoryPath, err, string(output))
+		errMsg := err.Error()
+		if errMsg != "exit status 4" {
+			return nil, fmt.Errorf("failed to scan directory %s: %v - Output: %s", directoryPath, err, string(output))
+		}
 	}
 
 	// Attempt to extract the JSON portion from the mixed output.
+	logger.Log.Debugf("Extracting JSON output from scan of directory: %s", directoryPath)
 	jsonOutput, err := extractJSON(string(output))
 	if err != nil {
 		// Handle the case where JSON extraction fails.
@@ -208,6 +123,7 @@ func ScanDirectory(wizcliPath, directoryPath string) (*ScanOutput, error) {
 	}
 
 	// Parse the extracted JSON output into the ScanOutput struct.
+	logger.Log.Debugf("Unmarshalling JSON output from scan of directory: %s", directoryPath)
 	var scanResult ScanOutput
 	if err := json.Unmarshal([]byte(jsonOutput), &scanResult); err != nil {
 		// Handle JSON parsing errors.
@@ -215,7 +131,7 @@ func ScanDirectory(wizcliPath, directoryPath string) (*ScanOutput, error) {
 	}
 
 	// Log completion and return the parsed scan results.
-	logger.Log.Infof("Scan completed for directory: %s", directoryPath)
+	logger.Log.Debugf("Scan completed for directory: %s", directoryPath)
 	return &scanResult, nil
 }
 

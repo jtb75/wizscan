@@ -56,8 +56,11 @@ func main() {
 		logger.Log.Info("Directories to scan: ", directories)
 	}
 
+	aggregatedResults := wizcli.AggregatedScanResults{}
+
 	// Used for testing
-	directories = []string{"/boot", "/usr"}
+	//directories = []string{"/boot", "/usr"}
+	//directories = []string{"C:\\"}
 
 	for _, drive := range directories {
 		mountedPath := ""
@@ -83,7 +86,12 @@ func main() {
 		// Process the scanResult as needed
 		logger.Log.Infof("Scan completed for %s", mountedPath)
 		// Example: Log the number of vulnerabilities found
-		logger.Log.Infof("Found %d vulnerabilities in %s", len(scanResult.Result.Libraries), mountedPath)
+		logger.Log.Infof("Found %d libraries with vulnerabilities in %s", len(scanResult.Result.Libraries), mountedPath)
+		logger.Log.Infof("Found %d applications with vulnerabilities in %s", len(scanResult.Result.Applications), mountedPath)
+
+		// Aggregate results
+		aggregatedResults.Libraries = append(aggregatedResults.Libraries, scanResult.Result.Libraries...)
+		aggregatedResults.Applications = append(aggregatedResults.Applications, scanResult.Result.Applications...)
 
 		// Remove the VSS snapshot and link
 		if runtime.GOOS == "windows" {
@@ -92,6 +100,24 @@ func main() {
 				logger.Log.Errorf("Failed to remove mount and VSS snapshot for drive %s: %v", drive, err)
 			}
 		}
+
 	}
 
+	// Convert the aggregated results to indented JSON
+	/*
+		jsonBytes, err := json.MarshalIndent(aggregatedResults, "", "    ")
+		if err != nil {
+			fmt.Println("Error marshalling JSON:", err)
+			return
+		}
+
+		// Writing the indented JSON output to a file
+		err = os.WriteFile("output.json", jsonBytes, 0644)
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return
+		}
+
+		fmt.Println("Results saved to output.json")
+	*/
 }

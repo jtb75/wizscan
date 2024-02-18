@@ -87,6 +87,7 @@ func extractShadowCopyVolumeName(output string) (string, error) {
 		if strings.Contains(line, "Shadow Copy Volume Name:") {
 			parts := strings.Fields(line)
 			if len(parts) >= 5 {
+				parts[4] += "\\"
 				return parts[4], nil
 			}
 		}
@@ -96,7 +97,7 @@ func extractShadowCopyVolumeName(output string) (string, error) {
 
 // mountSnapshot mounts the VSS snapshot and returns the path.
 func mountSnapshot(drive, shadowCopyVolume string) (string, error) {
-	mountPath := fmt.Sprintf("%s\\ShadowCopy", drive)
+	mountPath := fmt.Sprintf("%sShadowCopy", drive)
 	mountCmd := fmt.Sprintf("mklink /D %s %s", mountPath, shadowCopyVolume)
 	if _, err := executeCommandAndGetOutput("cmd", "/C", mountCmd); err != nil {
 		return "", fmt.Errorf("failed to mount snapshot for %s: %v", drive, err)
