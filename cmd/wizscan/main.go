@@ -1,13 +1,11 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
 	"runtime"
 	"strings"
 	"wizscan/pkg/logger"
 	"wizscan/pkg/utility"
+	"wizscan/pkg/vulnerability"
 	"wizscan/pkg/wizapi"
 	"wizscan/pkg/wizcli"
 
@@ -42,20 +40,20 @@ func main() {
 		logger.Log.Errorf("Error fetching vulnerabilities: %v", err)
 		logger.Log.Debug("Vulnerability Query Response: ", response)
 	}
-
-	jsonResponseBytes, err := json.MarshalIndent(response, "", "    ")
-	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
-		return
-	}
-	// Writing the indented JSON output to a file
-	err = os.WriteFile("sample_data/known_vulns.json", jsonResponseBytes, 0644)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		logger.Log.Exit(1)
-		return
-	}
-
+	/*
+		jsonResponseBytes, err := json.MarshalIndent(response, "", "    ")
+		if err != nil {
+			fmt.Println("Error marshalling JSON:", err)
+			return
+		}
+		// Writing the indented JSON output to a file
+		err = os.WriteFile("sample_data/known_vulns.json", jsonResponseBytes, 0644)
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			logger.Log.Exit(1)
+			return
+		}
+	*/
 	// Initialize and authenticate wizcli
 	cleanup, wizCliPath, err := wizcli.InitializeAndAuthenticate(args.WizClientID, args.WizClientSecret)
 	if err != nil {
@@ -77,7 +75,7 @@ func main() {
 
 	// Used for testing
 	//directories = []string{"/boot", "/usr"}
-	//directories = []string{"C:\\"}
+	//directories = []string{"E:\\"}
 
 	for _, drive := range directories {
 		mountedPath := ""
@@ -100,16 +98,13 @@ func main() {
 			continue
 		}
 
-		formattedDrive := drive
-		if runtime.GOOS == "windows" {
-			// Replace all backslashes with forward slashes and trim the trailing slash
-			formattedDrive = strings.ReplaceAll(drive, "/", "\\")
-		}
-
 		// Prepend the Drive to the Library path to represent actual full path
 		for i, lib := range scanResult.Result.Libraries {
-			// Prepend drive to each library's path
-			scanResult.Result.Libraries[i].Path = formattedDrive + lib.Path
+			if runtime.GOOS == "windows" {
+				lib.Path = strings.ReplaceAll(lib.Path, "/", "\\")
+				lib.Path = strings.TrimPrefix(lib.Path, "\\")
+			}
+			scanResult.Result.Libraries[i].Path = drive + lib.Path
 		}
 
 		// Process the scanResult as needed
@@ -131,20 +126,21 @@ func main() {
 		}
 
 	}
+	/*
+		jsonBytes, err := json.MarshalIndent(aggregatedResults, "", "    ")
+		if err != nil {
+			fmt.Println("Error marshalling JSON:", err)
+			return
+		}
 
-	// Convert the aggregated results to indented JSON
-	jsonBytes, err := json.MarshalIndent(aggregatedResults, "", "    ")
-	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
-		return
-	}
+		err = os.WriteFile("sample_data/scan.json", jsonBytes, 0644)
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return
+		}
 
-	// Writing the indented JSON output to a file
-	err = os.WriteFile("sample_data/scan.json", jsonBytes, 0644)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return
-	}
+		fmt.Println("Results saved to output.json")
+	*/
 
-	fmt.Println("Results saved to output.json")
+	vulnerability.CompareVulnerabilities(aggregatedResults, response)
 }
