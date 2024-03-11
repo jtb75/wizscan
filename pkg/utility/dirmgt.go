@@ -16,6 +16,7 @@ var exclusions = map[string]bool{
 	"/tmp":        true,
 	"/sys":        true,
 	"/cores":      true,
+	"/snap":       true,
 	"D:\\":        true, // For Windows
 }
 

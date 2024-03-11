@@ -5,6 +5,7 @@ package wizcli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
@@ -146,4 +147,25 @@ func extractJSON(output string) (string, error) {
 	}
 
 	return matches[0], nil
+}
+
+// LoadScanResults loads scan results from a JSON file into AggregatedScanResults struct
+func LoadScanResults(filePath string) (*AggregatedScanResults, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	bytes, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	var results AggregatedScanResults
+	if err := json.Unmarshal(bytes, &results); err != nil {
+		return nil, err
+	}
+
+	return &results, nil
 }

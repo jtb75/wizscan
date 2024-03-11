@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"wizscan/pkg/logger"
@@ -40,7 +43,11 @@ func main() {
 		logger.Log.Errorf("Error fetching vulnerabilities: %v", err)
 		logger.Log.Debug("Vulnerability Query Response: ", response)
 	}
-	/*
+
+	// Set test to 0 to run, set to 1 to use sample data
+	test := 0
+	if test == 0 {
+
 		jsonResponseBytes, err := json.MarshalIndent(response, "", "    ")
 		if err != nil {
 			fmt.Println("Error marshalling JSON:", err)
@@ -53,80 +60,72 @@ func main() {
 			logger.Log.Exit(1)
 			return
 		}
-	*/
-	// Initialize and authenticate wizcli
-	cleanup, wizCliPath, err := wizcli.InitializeAndAuthenticate(args.WizClientID, args.WizClientSecret)
-	if err != nil {
-		logger.Log.Errorf("Initialization and authentication failed: %v", err)
-		return
-	}
-	defer cleanup()
 
-	// Retrieve top-level directories
-	directories, err := utility.GetTopLevelDirectories()
-	if err != nil {
-		logger.Log.Errorf("Error listing directories: %v", err)
-		return
-	} else {
-		logger.Log.Info("Directories to scan: ", directories)
-	}
+		// Initialize and authenticate wizcli
+		cleanup, wizCliPath, err := wizcli.InitializeAndAuthenticate(args.WizClientID, args.WizClientSecret)
+		if err != nil {
+			logger.Log.Errorf("Initialization and authentication failed: %v", err)
+			return
+		}
+		defer cleanup()
 
-	aggregatedResults := wizcli.AggregatedScanResults{}
+		// Retrieve top-level directories
+		directories, err := utility.GetTopLevelDirectories()
+		if err != nil {
+			logger.Log.Errorf("Error listing directories: %v", err)
+			return
+		} else {
+			logger.Log.Info("Directories to scan: ", directories)
+		}
 
-	// Used for testing
-	//directories = []string{"/boot", "/usr"}
-	//directories = []string{"E:\\"}
+		aggregatedResults := wizcli.AggregatedScanResults{}
 
-	for _, drive := range directories {
-		mountedPath := ""
-		shadowCopyID := ""
-		if runtime.GOOS == "windows" {
-			mountedPath, shadowCopyID, err = utility.CreateVSSSnapshot(drive)
+		// Used for testing
+		//directories = []string{"/boot", "/usr"}
+		//directories = []string{"E:\\"}
+
+		for _, drive := range directories {
+			mountedPath := ""
+			shadowCopyID := ""
+			if runtime.GOOS == "windows" {
+				mountedPath, shadowCopyID, err = utility.CreateVSSSnapshot(drive)
+				if err != nil {
+					logger.Log.Errorf("Error creating VSS snapshot for drive %s: %v", drive, err)
+					continue
+				}
+			}
+
+			// Do operations on the mounted snapshot...
+			if mountedPath == "" {
+				mountedPath = drive
+			}
+			scanResult, err := wizcli.ScanDirectory(wizCliPath, mountedPath)
 			if err != nil {
-				logger.Log.Errorf("Error creating VSS snapshot for drive %s: %v", drive, err)
+				logger.Log.Errorf("Failed to scan %s: %v", mountedPath, err)
 				continue
 			}
-		}
 
-		// Do operations on the mounted snapshot...
-		if mountedPath == "" {
-			mountedPath = drive
-		}
-		scanResult, err := wizcli.ScanDirectory(wizCliPath, mountedPath)
-		if err != nil {
-			logger.Log.Errorf("Failed to scan %s: %v", mountedPath, err)
-			continue
-		}
+			// Prepend the Drive to the Library path to represent actual full path
+			for i, lib := range scanResult.Result.Libraries {
+				if runtime.GOOS == "windows" {
+					lib.Path = strings.ReplaceAll(lib.Path, "/", "\\")
+					lib.Path = strings.TrimPrefix(lib.Path, "\\")
+				}
+				scanResult.Result.Libraries[i].Path = drive + lib.Path
+			}
 
-		// Prepend the Drive to the Library path to represent actual full path
-		for i, lib := range scanResult.Result.Libraries {
+			// Aggregate results
+			aggregatedResults.Libraries = append(aggregatedResults.Libraries, scanResult.Result.Libraries...)
+			aggregatedResults.Applications = append(aggregatedResults.Applications, scanResult.Result.Applications...)
+			// Remove the VSS snapshot and link
 			if runtime.GOOS == "windows" {
-				lib.Path = strings.ReplaceAll(lib.Path, "/", "\\")
-				lib.Path = strings.TrimPrefix(lib.Path, "\\")
+
+				if err := utility.RemoveVSSSnapshot(mountedPath, shadowCopyID); err != nil {
+					logger.Log.Errorf("Failed to remove mount and VSS snapshot for drive %s: %v", drive, err)
+				}
 			}
-			scanResult.Result.Libraries[i].Path = drive + lib.Path
+
 		}
-
-		// Process the scanResult as needed
-		logger.Log.Infof("Scan completed for %s", mountedPath)
-		// Example: Log the number of vulnerabilities found
-		logger.Log.Infof("Found %d libraries with vulnerabilities in %s", len(scanResult.Result.Libraries), mountedPath)
-		logger.Log.Infof("Found %d applications with vulnerabilities in %s", len(scanResult.Result.Applications), mountedPath)
-
-		// Aggregate results
-		aggregatedResults.Libraries = append(aggregatedResults.Libraries, scanResult.Result.Libraries...)
-		aggregatedResults.Applications = append(aggregatedResults.Applications, scanResult.Result.Applications...)
-
-		// Remove the VSS snapshot and link
-		if runtime.GOOS == "windows" {
-
-			if err := utility.RemoveVSSSnapshot(mountedPath, shadowCopyID); err != nil {
-				logger.Log.Errorf("Failed to remove mount and VSS snapshot for drive %s: %v", drive, err)
-			}
-		}
-
-	}
-	/*
 		jsonBytes, err := json.MarshalIndent(aggregatedResults, "", "    ")
 		if err != nil {
 			fmt.Println("Error marshalling JSON:", err)
@@ -139,8 +138,25 @@ func main() {
 			return
 		}
 
-		fmt.Println("Results saved to output.json")
-	*/
+		vulnerability.CompareVulnerabilities(aggregatedResults, response)
 
-	vulnerability.CompareVulnerabilities(aggregatedResults, response)
+	} else {
+
+		// Load the scan results into aggregatedResults using LoadScanResults
+		// which returns a pointer to AggregatedScanResults
+		filePath := "sample_data/scan.json" // Adjust the file path as necessary
+		loadedResults, err := wizcli.LoadScanResults(filePath)
+		if err != nil {
+			fmt.Printf("Error loading scan results: %s\n", err)
+			return
+		}
+
+		// Ensure loadedResults is not nil before dereferencing
+		if loadedResults == nil {
+			fmt.Println("No scan results loaded, loadedResults is nil")
+			return
+		}
+		vulnerability.CompareVulnerabilities(*loadedResults, response)
+	}
+
 }
