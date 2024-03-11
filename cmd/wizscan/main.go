@@ -45,7 +45,7 @@ func main() {
 	}
 
 	// Set test to 0 to run, set to 1 to use sample data
-	test := 0
+	test := 1
 	if test == 0 {
 
 		jsonResponseBytes, err := json.MarshalIndent(response, "", "    ")
