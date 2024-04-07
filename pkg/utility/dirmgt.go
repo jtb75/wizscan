@@ -79,3 +79,13 @@ func GetTopLevelDirectories() ([]string, error) {
 
 	return allDirectories, nil
 }
+
+// createTempFile creates a temporary file and returns a pointer to the os.File and an error if any
+func CreateTempFile() (*os.File, error) {
+	// Create a temporary file
+	file, err := os.CreateTemp("", "wizscan-")
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}

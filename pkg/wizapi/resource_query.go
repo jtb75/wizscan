@@ -98,38 +98,6 @@ query GraphSearch($query: GraphEntityQueryInput, $controlId: ID, $projectId: Str
   }
 `
 
-type GraphQLResourceResponse struct {
-	Data struct {
-		GraphSearch struct {
-			MaxCountReached bool `json:"maxCountReached"`
-			TotalCount      int  `json:"totalCount"` // TotalCount is now directly mapped
-			Nodes           []struct {
-				AggregateCount interface{} `json:"aggregateCount"`
-				Entities       []struct {
-					ID           string                 `json:"id"`
-					Name         string                 `json:"name"`
-					Properties   map[string]interface{} `json:"properties"`
-					Technologies []struct {
-						ID   string `json:"id"`
-						Icon string `json:"icon"`
-					} `json:"technologies"`
-					Type         string      `json:"type"`
-					UserMetadata interface{} `json:"userMetadata"`
-				} `json:"entities"`
-			} `json:"nodes"`
-			PageInfo struct {
-				EndCursor   string `json:"endCursor"`
-				HasNextPage bool   `json:"hasNextPage"`
-			} `json:"pageInfo"`
-		} `json:"graphSearch"`
-	} `json:"data"`
-	Errors []GraphQLResourceError `json:"errors"`
-}
-
-type GraphQLResourceError struct {
-	Message string `json:"message"`
-}
-
 func resourceCreateQueryVariables(scanCloudType, scanProviderID string) map[string]interface{} {
 	return map[string]interface{}{
 		"quick": true,

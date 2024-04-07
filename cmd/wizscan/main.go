@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 	"wizscan/pkg/logger"
 	"wizscan/pkg/utility"
 	"wizscan/pkg/vulnerability"
@@ -44,8 +45,10 @@ func main() {
 		logger.Log.Debug("Vulnerability Query Response: ", response)
 	}
 
+	var assetVulns vulnerability.Asset
+
 	// Set test to 0 to run, set to 1 to use sample data
-	test := 1
+	test := 0
 	if test == 0 {
 
 		jsonResponseBytes, err := json.MarshalIndent(response, "", "    ")
@@ -138,7 +141,11 @@ func main() {
 			return
 		}
 
-		vulnerability.CompareVulnerabilities(aggregatedResults, response)
+		assetVulns, err = vulnerability.CompareVulnerabilities(aggregatedResults, response)
+		if err != nil {
+			fmt.Printf("Error in CompareVulnerabilities: %s\n", err)
+			return
+		}
 
 	} else {
 
@@ -156,7 +163,70 @@ func main() {
 			fmt.Println("No scan results loaded, loadedResults is nil")
 			return
 		}
-		vulnerability.CompareVulnerabilities(*loadedResults, response)
+		assetVulns, err = vulnerability.CompareVulnerabilities(*loadedResults, response)
+		if err != nil {
+			fmt.Printf("Error in CompareVulnerabilities: %s\n", err)
+			return
+		}
+
+	}
+
+	var vulnPayloadJSON []byte // Use a byte slice to hold JSON data
+
+	if len(assetVulns.VulnerabilityFindings) > 0 {
+		assetVulns.AssetIdentifier.CloudPlatform = args.ScanCloudType
+		assetVulns.AssetIdentifier.ProviderId = args.ScanProviderID
+		vulnPayload := vulnerability.IntegrationData{
+			IntegrationId: "e7ddcf48-a2f3-fd39-89f4-b27c4efca17c", // Set an integration ID
+			DataSources:   []vulnerability.DataSource{},           // Initialize an empty slice of DataSources
+		}
+		// Create a DataSource and add assetVulns to it
+		dataSource := vulnerability.DataSource{
+			Id:           args.ScanSubscriptionID,
+			AnalysisDate: time.Now(),                        // Set current time as the analysis date
+			Assets:       []vulnerability.Asset{assetVulns}, // Add assetVulns here
+		}
+
+		vulnPayload.DataSources = append(vulnPayload.DataSources, dataSource)
+
+		vulnPayloadJSON, err = json.MarshalIndent(vulnPayload, "", "\t")
+		if err != nil {
+			fmt.Println("Error marshaling assetVulns to JSON:", err)
+			return
+		}
+	} else {
+		logger.Log.Infof("No new vulnerabilities found")
+		return // Exit the program gracefully
+	}
+
+	file, err := utility.CreateTempFile()
+	if err != nil {
+		logger.Log.Errorln("Error creating temp file:", err)
+		return
+	}
+
+	/*
+		defer func() {
+			// Ensure the temporary file is deleted upon exiting the function
+			if err := file.Close(); err != nil {
+				logger.Log.Errorf("Error closing file: %v", err)
+			}
+			if err := os.Remove(file.Name()); err != nil {
+				logger.Log.Errorf("Error removing temporary file: %v", err)
+			}
+		}()
+	*/
+
+	logger.Log.Debugln("Temporary file created:", file.Name())
+
+	_, err = file.Write(vulnPayloadJSON)
+	if err != nil {
+		logger.Log.Errorln("Error writing JSON to temp file:", err)
+		return
+	}
+
+	if err := apiClient.PublishVulns(file.Name()); err != nil {
+		logger.Log.Errorln("Error publishing vulnerabilities:", err)
 	}
 
 }
