@@ -78,7 +78,7 @@ func main() {
 			logger.Log.Errorf("Error listing directories: %v", err)
 			return
 		} else {
-			logger.Log.Info("Directories to scan: ", directories)
+			logger.Log.Debug("Directories to scan: ", directories)
 		}
 
 		aggregatedResults := wizcli.AggregatedScanResults{}
@@ -87,6 +87,7 @@ func main() {
 		//directories = []string{"/boot", "/usr"}
 		//directories = []string{"E:\\"}
 
+		logger.Log.Info("Initiating directory scan")
 		for _, drive := range directories {
 			mountedPath := ""
 			shadowCopyID := ""
@@ -205,17 +206,15 @@ func main() {
 		return
 	}
 
-	/*
-		defer func() {
-			// Ensure the temporary file is deleted upon exiting the function
-			if err := file.Close(); err != nil {
-				logger.Log.Errorf("Error closing file: %v", err)
-			}
-			if err := os.Remove(file.Name()); err != nil {
-				logger.Log.Errorf("Error removing temporary file: %v", err)
-			}
-		}()
-	*/
+	defer func() {
+		// Ensure the temporary file is deleted upon exiting the function
+		if err := file.Close(); err != nil {
+			logger.Log.Errorf("Error closing file: %v", err)
+		}
+		if err := os.Remove(file.Name()); err != nil {
+			logger.Log.Errorf("Error removing temporary file: %v", err)
+		}
+	}()
 
 	logger.Log.Debugln("Temporary file created:", file.Name())
 

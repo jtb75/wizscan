@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"wizscan/pkg/logger"
 )
 
 // uploads a file to the provided upload URL.
@@ -45,6 +46,6 @@ func S3Upload(uploadURL, filePath string) error {
 		return fmt.Errorf("bad status: %s", resp.Status)
 	}
 
-	fmt.Println("Vulnerability information uploaded successfully")
+	logger.Log.Info("Vulnerability information uploaded successfully")
 	return nil
 }
