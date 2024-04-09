@@ -142,7 +142,7 @@ func main() {
 			return
 		}
 
-		assetVulns, err = vulnerability.CompareVulnerabilities(aggregatedResults, response)
+		assetVulns, err = vulnerability.CompareVulnerabilities(aggregatedResults, response, args.ScanProviderID)
 		if err != nil {
 			fmt.Printf("Error in CompareVulnerabilities: %s\n", err)
 			return
@@ -164,7 +164,7 @@ func main() {
 			fmt.Println("No scan results loaded, loadedResults is nil")
 			return
 		}
-		assetVulns, err = vulnerability.CompareVulnerabilities(*loadedResults, response)
+		assetVulns, err = vulnerability.CompareVulnerabilities(*loadedResults, response, args.ScanProviderID)
 		if err != nil {
 			fmt.Printf("Error in CompareVulnerabilities: %s\n", err)
 			return
