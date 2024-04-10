@@ -1,6 +1,7 @@
 package utility
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -20,22 +21,35 @@ type Arguments struct {
 	ScanCloudType      string `json:"scanCloudType"`
 	ScanProviderID     string `json:"scanProviderId"`
 	Save               bool   `json:"save"`
+	Install            bool   `json:"install"`
+	Uninstall          bool   `json:"uninstall"`
 }
 
 func saveConfig(config *Arguments, filePath string) error {
+	config.Install = false // Ensure Install is always false when saving config
+
+	// Marshal the config struct to JSON
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal config: %w", err)
 	}
-	err = os.WriteFile(filePath, data, 0644)
+
+	// Encode the JSON data using base64
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	// Convert encoded data to byte slice for writing to file
+	byteData := []byte(encodedData)
+
+	// Write the base64 encoded data to the file with 0600 permissions to ensure the file is only accessible to the user
+	err = os.WriteFile(filePath, byteData, 0600)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write config file: %w", err)
 	}
+
 	return nil
 }
 
-// ArgParse parses command-line arguments and returns an Arguments struct and config file path.
-func ArgParse() *Arguments {
+func ArgParse() (*Arguments, error) {
 	args := &Arguments{}
 	var configFilePath string
 	var logLevel string
@@ -48,8 +62,10 @@ func ArgParse() *Arguments {
 	flag.StringVar(&args.ScanSubscriptionID, "scanSubscriptionId", "", "Scan Subscription ID")
 	flag.StringVar(&args.ScanCloudType, "scanCloudType", "", "Scan Cloud Type")
 	flag.StringVar(&args.ScanProviderID, "scanProviderId", "", "Scan Provider ID")
-	flag.BoolVar(&args.Save, "save", false, "Set to true to save the configuration")
-	flag.StringVar(&configFilePath, "config", "config.json", "Path to the configuration file")
+	flag.BoolVar(&args.Save, "save", false, "Set to true to save the configuration (ignored if install flag is set)")
+	flag.StringVar(&configFilePath, "config", "config.json", "Path to the configuration file (ignored if install flag is set)")
+	flag.BoolVar(&args.Install, "install", false, "Install the application")
+	flag.BoolVar(&args.Uninstall, "uninstall", false, "Uninstall the application")
 
 	flag.Parse()
 
@@ -61,45 +77,62 @@ func ArgParse() *Arguments {
 		logger.Init(parsedLevel)
 	}
 
-	// Check if config file path is provided and attempt to read it
+	// Enforce mutual exclusivity
+	if args.Install && args.Uninstall {
+		return nil, errors.New("'-install' and '-uninstall' cannot be used together")
+	}
+
+	// If uninstall is requested, we can immediately return since no other flags are needed
+	if args.Uninstall {
+		return args, nil
+	}
+
+	if args.Install {
+		if err := validateArguments(args); err != nil {
+			return nil, fmt.Errorf("error validating arguments: %v", err)
+		}
+		return args, nil
+	}
+
 	if configFilePath != "" {
 		if err := readConfig(configFilePath, args); err != nil {
-			fmt.Println("Error reading config file:", err)
+			return nil, fmt.Errorf("error reading config file: %v", err)
 		}
 	}
 
-	// Check and save configuration if Save flag is set
 	if args.Save {
 		if err := saveConfig(args, configFilePath); err != nil {
-			fmt.Println("Error saving config:", err)
+			return nil, fmt.Errorf("error saving config: %v", err)
 		}
 	}
 
-	// Validate arguments before returning
 	if err := validateArguments(args); err != nil {
-		fmt.Println("Error validating arguments:", err)
-		os.Exit(1) // Exit the program if validation fails
+		return nil, fmt.Errorf("error validating arguments: %v", err)
 	}
 
-	return args
+	return args, nil
 }
 
-// readConfig reads the configuration from a file into a Arguments struct
 func readConfig(filePath string, config *Arguments) error {
-	file, err := os.ReadFile(filePath)
+	encodedData, err := os.ReadFile(filePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	err = json.Unmarshal(file, config)
+	// Decode the base64-encoded data
+	decodedData, err := base64.StdEncoding.DecodeString(string(encodedData))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode base64 data: %w", err)
+	}
+
+	// Unmarshal the JSON data into the Arguments struct
+	if err = json.Unmarshal(decodedData, config); err != nil {
+		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	return nil
 }
 
-// validateArguments checks if all mandatory fields in Arguments are set.
 func validateArguments(args *Arguments) error {
 	if args.WizClientID == "" {
 		return errors.New("WizClientID is required")

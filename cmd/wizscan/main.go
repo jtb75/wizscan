@@ -19,8 +19,30 @@ import (
 func main() {
 	logger.Init(logrus.InfoLevel)
 
-	args := utility.ArgParse() // Updated call to ArgParse
-	logger.Log.Debugf("Arguments: %+v\n", args)
+	args, err := utility.ArgParse() // Capture both the arguments and the error
+	if err != nil {
+		// Log the error and exit if ArgParse encountered an issue
+		logger.Log.Errorf("Failed to parse arguments: %v", err)
+		os.Exit(1) // Exit the program with a non-zero status indicating failure
+	}
+	if args.Uninstall {
+		// Call your uninstallation logic here
+		logger.Log.Info("Performing uninstallation...")
+		if err := utility.UninstallApp(); err != nil {
+			logger.Log.Errorf("Uninstallation failed: %v\n", err)
+			return
+		}
+		logger.Log.Info("Uninstallation completed successfully.")
+		os.Exit(0)
+	} else if args.Install {
+		logger.Log.Info("Performing installation...")
+		if err := utility.InstallApp(args); err != nil {
+			logger.Log.Errorf("Installation failed: %v", err)
+			os.Exit(1)
+		}
+		logger.Log.Info("Installation completed successfully.")
+		os.Exit(0)
+	}
 
 	apiClient := wizapi.NewWizAPI(args.WizClientID, args.WizClientSecret, args.WizAuthURL, args.WizQueryURL)
 	if apiClient == nil {
