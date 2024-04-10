@@ -171,7 +171,7 @@ func scheduleOnLinux(binaryPath string) error {
 	hour := rand.Intn(4) + 20 // Random hour between 20 (8 PM) and 23 (11 PM)
 
 	// Setting up the cron job command with log redirection and configuration option
-	cronJob := fmt.Sprintf("%d %d * * * %s -config /etc/wizscan/config > /var/log/wizscan.log 2>&1\n", minute, hour, binaryPath)
+	cronJob := fmt.Sprintf("%d %d * * * %s -config /etc/wizscan/config >> /var/log/wizscan.log 2>&1\n", minute, hour, binaryPath)
 
 	// Adding the cron job to the user's crontab
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("(crontab -l 2>/dev/null; echo '%s') | crontab -", cronJob))
