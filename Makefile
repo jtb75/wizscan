@@ -15,7 +15,9 @@ BINARY_WINDOWS_AMD64=$(APP_NAME)-windows-amd64.exe
 # Versioning
 GIT_COMMIT=$(shell git rev-list -1 HEAD)
 VERSION?= $(shell git describe --tags --always || echo "unknown")
-LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.Commit=$(GIT_COMMIT)"
+
+# Linker flags for versioning and stripping debug information
+LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.Commit=$(GIT_COMMIT) -s -w"
 
 all: linux-amd64 macos-arm64 windows-amd64
 
