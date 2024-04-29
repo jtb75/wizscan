@@ -61,6 +61,7 @@ func main() {
 
 	logger.Log.Debugf("Matched Resource ID: %s", resourceId)
 
+	// response == known vulnerabilities
 	response, err := wizapi.FetchAllVulnerabilities(apiClient, resourceId)
 	if err != nil {
 		logger.Log.Errorf("Error fetching vulnerabilities: %v", err)
@@ -69,18 +70,20 @@ func main() {
 
 	var assetVulns vulnerability.Asset
 
-	jsonResponseBytes, err := json.MarshalIndent(response, "", "    ")
-	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
-		return
-	}
-	// Writing the indented JSON output to a file
-	err = os.WriteFile("sample_data/known_vulns.json", jsonResponseBytes, 0644)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		logger.Log.Exit(1)
-		return
-	}
+	/*
+		jsonResponseBytes, err := json.MarshalIndent(response, "", "    ")
+		if err != nil {
+			fmt.Println("Error marshalling JSON:", err)
+			return
+		}
+		// Writing the indented JSON output to a file
+		err = os.WriteFile("sample_data/known_vulns.json", jsonResponseBytes, 0644)
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			logger.Log.Exit(1)
+			return
+		}
+	*/
 
 	// Initialize and authenticate wizcli
 	cleanup, wizCliPath, err := wizcli.InitializeAndAuthenticate(args.WizClientID, args.WizClientSecret)
@@ -148,17 +151,19 @@ func main() {
 		}
 
 	}
-	jsonBytes, err := json.MarshalIndent(aggregatedResults, "", "    ")
-	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
-		return
-	}
+	/*
+		jsonBytes, err := json.MarshalIndent(aggregatedResults, "", "    ")
+		if err != nil {
+			fmt.Println("Error marshalling JSON:", err)
+			return
+		}
 
-	err = os.WriteFile("sample_data/scan.json", jsonBytes, 0644)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return
-	}
+		err = os.WriteFile("sample_data/scan.json", jsonBytes, 0644)
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return
+		}
+	*/
 
 	assetVulns, err = vulnerability.CompareVulnerabilities(aggregatedResults, response, args.ScanProviderID)
 	if err != nil {
